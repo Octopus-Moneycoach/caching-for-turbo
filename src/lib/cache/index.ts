@@ -1,20 +1,13 @@
 import { Readable } from 'node:stream'
 import { env } from '../env'
-import { pipeline } from 'node:stream/promises'
 import {
   createReadStream,
   createWriteStream,
   existsSync,
   statSync
 } from 'node:fs'
-import { getCacheClient } from './utils'
-import {
-  cacheVersion,
-  getCacheKey,
-  getFsCachePath,
-  getTempCachePath
-} from '../constants'
-import cache from '@actions/cache'
+import { getCacheKey, getFsCachePath } from '../constants'
+import * as cache from '@actions/cache'
 import streamToPromise from 'stream-to-promise'
 
 type RequestContext = {
