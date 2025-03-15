@@ -127077,6 +127077,39 @@ function wrappy (fn, cb) {
 
 "use strict";
 
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -127086,14 +127119,14 @@ exports.getCache = getCache;
 const env_1 = __nccwpck_require__(51363);
 const node_fs_1 = __nccwpck_require__(73024);
 const constants_1 = __nccwpck_require__(88386);
-const cache_1 = __importDefault(__nccwpck_require__(5116));
+const cache = __importStar(__nccwpck_require__(5116));
 const stream_to_promise_1 = __importDefault(__nccwpck_require__(42050));
 //* Cache API
 async function saveCache(ctx, hash, tag, stream) {
     const tempFile = (0, constants_1.getFsCachePath)(hash);
     const writeStream = (0, node_fs_1.createWriteStream)(tempFile);
     await (0, stream_to_promise_1.default)(stream.pipe(writeStream));
-    const id = await cache_1.default.saveCache([tempFile], (0, constants_1.getCacheKey)(hash, tag));
+    const id = await cache.saveCache([tempFile], (0, constants_1.getCacheKey)(hash, tag));
     ctx.log.info(`Saved cache ${id} for ${hash}`);
 }
 async function getCache(ctx, hash) {
@@ -127106,7 +127139,7 @@ async function getCache(ctx, hash) {
         return [size, (0, node_fs_1.createReadStream)(path), undefined];
     }
     const path = (0, constants_1.getFsCachePath)(hash);
-    const key = await cache_1.default.restoreCache([path], (0, constants_1.getCacheKey)(hash));
+    const key = await cache.restoreCache([path], (0, constants_1.getCacheKey)(hash));
     if (!key) {
         return null;
     }
