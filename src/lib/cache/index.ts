@@ -8,7 +8,14 @@ import {
   statSync
 } from 'node:fs'
 import { getCacheClient } from './utils'
-import { cacheVersion, getCacheKey, getFsCachePath } from '../constants'
+import {
+  cacheVersion,
+  getCacheKey,
+  getFsCachePath,
+  getTempCachePath
+} from '../constants'
+import cache from '@actions/cache'
+import streamToPromise from 'stream-to-promise'
 
 type RequestContext = {
   log: {
@@ -23,34 +30,10 @@ export async function saveCache(
   tag: string,
   stream: Readable
 ): Promise<void> {
-  if (!env.valid) {
-    ctx.log.info(
-      `Using filesystem cache because cache API env vars are not set`
-    )
-    await pipeline(stream, createWriteStream(getFsCachePath(hash)))
-    return
-  }
-  const client = getCacheClient()
-  const existingCacheResponse = await client.reserve(
-    getCacheKey(hash, tag),
-    cacheVersion
-  )
-
-  // Silently exit when we have not been able to receive a cache-hit
-  if (existingCacheResponse.success === false) {
-    return
-  }
-
-  const id = existingCacheResponse.data?.cacheId
-  if (!id) {
-    throw new Error(
-      `Unable to reserve cache (received: ${JSON.stringify(
-        existingCacheResponse.data
-      )})`
-    )
-  }
-  ctx.log.info(`Reserved cache ${id}`)
-  await client.save(parseInt(id), stream)
+  const tempFile = getFsCachePath(hash)
+  const writeStream = createWriteStream(tempFile)
+  await streamToPromise(stream.pipe(writeStream))
+  const id = await cache.saveCache([tempFile], getCacheKey(hash, tag))
   ctx.log.info(`Saved cache ${id} for ${hash}`)
 }
 
@@ -67,25 +50,18 @@ export async function getCache(
     const size = statSync(path).size
     return [size, createReadStream(path), undefined]
   }
-  //* Get cache from cache API
-  const client = getCacheClient()
-  const cacheKey = getCacheKey(hash)
-  const { data } = await client.query(cacheKey, cacheVersion)
-  ctx.log.info(`Cache lookup for ${cacheKey}`)
-  if (!data) {
-    ctx.log.info(`Cache lookup did not return data`)
+
+  const path = getFsCachePath(hash)
+  const key = await cache.restoreCache([path], getCacheKey(hash))
+  if (!key) {
     return null
   }
-  const [foundCacheKey, artifactTag] = String(data.cacheKey).split('#')
-  if (foundCacheKey !== cacheKey) {
-    ctx.log.info(`Cache key mismatch: ${foundCacheKey} !== ${cacheKey}`)
+  const [found, tag] = key.split('#')
+  if (found !== key) {
+    ctx.log.info(`Cache key mismatch: ${found} !== ${key}`)
     return null
   }
-  const resp = await fetch(data.archiveLocation)
-  const size = +(resp.headers.get('content-length') || 0)
-  const readableStream = resp.body
-  if (!readableStream) {
-    throw new Error('Failed to retrieve cache stream')
-  }
-  return [size, readableStream, artifactTag]
+
+  const stream = createReadStream(path)
+  return [stream.readableLength, stream, tag]
 }
